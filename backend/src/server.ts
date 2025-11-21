@@ -8,7 +8,8 @@ import { errorHandler } from './middleware/errorHandler.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import usersRoutes from './modules/users/users.routes.js';
 import coursesRoutes from './modules/courses/courses.routes.js';
-import enrollmentRoutes from './modules/enrollment/enrollment.routes.js'; // NEW
+import enrollmentRoutes from './modules/enrollment/enrollment.routes.js';
+import tasksRoutes from './modules/tasks/tasks.routes.js';
 
 const app: Application = express();
 
@@ -38,6 +39,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/enrollments', enrollmentRoutes); 
+app.use('/api/tasks', tasksRoutes);
+
 // 404 Handler
 app.use((req: Request, res: Response) => {
   res.status(404).json({
