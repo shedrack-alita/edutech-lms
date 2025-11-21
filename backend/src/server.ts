@@ -10,6 +10,7 @@ import usersRoutes from './modules/users/users.routes.js';
 import coursesRoutes from './modules/courses/courses.routes.js';
 import enrollmentRoutes from './modules/enrollment/enrollment.routes.js';
 import tasksRoutes from './modules/tasks/tasks.routes.js';
+import meetingsRoutes from './modules/meetings/meetings.routes.js';
 
 const app: Application = express();
 
@@ -40,6 +41,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/courses', coursesRoutes);
 app.use('/api/enrollments', enrollmentRoutes); 
 app.use('/api/tasks', tasksRoutes);
+app.use('/api/meetings', meetingsRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
