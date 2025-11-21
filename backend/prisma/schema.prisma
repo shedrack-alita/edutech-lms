@@ -1,0 +1,230 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// USER MODEL
+// ============================================
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  role      Role     @default(LEARNER)
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enrollments     Enrollment[]
+  progress        Progress[]
+  submissions     Submission[]
+  createdCourses  Course[]     @relation("CourseCreator")
+  createdTasks    Task[]       @relation("TaskCreator")
+  createdMeetings Meeting[]    @relation("MeetingCreator")
+
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  LEARNER
+}
+
+// ============================================
+// COURSE MODELS
+// ============================================
+
+model Course {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @db.Text
+  thumbnail   String?
+  category    String
+  level       Level    @default(BEGINNER)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creatorId   String
+  creator     User         @relation("CourseCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  modules     Module[]
+  enrollments Enrollment[]
+
+  @@map("courses")
+}
+
+enum Level {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  title       String
+  description String?  @db.Text
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  lessons  Lesson[]
+
+  @@map("modules")
+}
+
+model Lesson {
+  id          String      @id @default(uuid())
+  title       String
+  description String?     @db.Text
+  contentType ContentType
+  videoUrl    String?
+  textContent String?     @db.Text
+  duration    Int?
+  order       Int
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  moduleId String
+  module   Module     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  progress Progress[]
+
+  @@map("lessons")
+}
+
+enum ContentType {
+  VIDEO
+  TEXT
+  DOCUMENT
+}
+
+// ============================================
+// ENROLLMENT & PROGRESS MODELS
+// ============================================
+
+model Enrollment {
+  id          String           @id @default(uuid())
+  enrolledAt  DateTime         @default(now())
+  completedAt DateTime?
+  status      EnrollmentStatus @default(ACTIVE)
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  DROPPED
+}
+
+model Progress {
+  id          String    @id @default(uuid())
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId String
+  lesson   Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@map("progress")
+}
+
+// ============================================
+// TASK & SUBMISSION MODELS
+// ============================================
+
+model Task {
+  id          String    @id @default(uuid())
+  title       String
+  description String    @db.Text
+  type        TaskType
+  dueDate     DateTime?
+  maxScore    Int?
+  attachments String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  creatorId   String
+  creator     User         @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@map("tasks")
+}
+
+enum TaskType {
+  ASSIGNMENT
+  PROJECT
+  QUIZ
+}
+
+model Submission {
+  id          String           @id @default(uuid())
+  content     String?          @db.Text
+  attachments String[]
+  score       Int?
+  feedback    String?          @db.Text
+  status      SubmissionStatus @default(PENDING)
+  submittedAt DateTime         @default(now())
+  gradedAt    DateTime?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("submissions")
+}
+
+enum SubmissionStatus {
+  PENDING
+  GRADED
+  RETURNED
+}
+
+// ============================================
+// MEETING MODEL
+
+
+// ============================================
+
+model Meeting {
+  id          String        @id @default(uuid())
+  title       String
+  description String?       @db.Text
+  meetingUrl  String?
+  startTime   DateTime
+  endTime     DateTime
+  status      MeetingStatus @default(SCHEDULED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  creatorId String
+  creator   User   @relation("MeetingCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
