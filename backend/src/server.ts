@@ -11,14 +11,17 @@ import coursesRoutes from './modules/courses/courses.routes.js';
 import enrollmentRoutes from './modules/enrollment/enrollment.routes.js';
 import tasksRoutes from './modules/tasks/tasks.routes.js';
 import meetingsRoutes from './modules/meetings/meetings.routes.js';
+import adminRoutes from './modules/admin/admin.routes';
 
 const app: Application = express();
 
 // Middleware
-app.use(cors({
-  origin: env.FRONTEND_URL,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    credentials: true,
+  })
+);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -42,6 +45,7 @@ app.use('/api/courses', coursesRoutes);
 app.use('/api/enrollments', enrollmentRoutes); 
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/meetings', meetingsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {
