@@ -45,8 +45,15 @@ export const adminService = {
 	},
 
 	// Create module
-	async createModule(data: { title: string; description?: string; order: number; courseId: string }) {
-		const response = await api.post('/modules', data);
+	async createModule(
+		courseId: string,
+		data: {
+			title: string;
+			description?: string;
+			order: number;
+		}
+	) {
+		const response = await api.post(`/courses/${courseId}/modules`, data);
 		return response.data.data;
 	},
 
@@ -63,17 +70,19 @@ export const adminService = {
 	},
 
 	// Create lesson
-	async createLesson(data: {
-		title: string;
-		description?: string;
-		contentType: 'VIDEO' | 'TEXT' | 'DOCUMENT';
-		videoUrl?: string;
-		textContent?: string;
-		duration?: number;
-		order: number;
-		moduleId: string;
-	}) {
-		const response = await api.post('/lessons', data);
+	async createLesson(
+		moduleId: string,
+		data: {
+			title: string;
+			description?: string;
+			contentType: 'VIDEO' | 'TEXT' | 'DOCUMENT';
+			videoUrl?: string;
+			textContent?: string;
+			duration?: number;
+			order: number;
+		}
+	) {
+		const response = await api.post(`/modules/${moduleId}/lessons`, data);
 		return response.data.data;
 	},
 

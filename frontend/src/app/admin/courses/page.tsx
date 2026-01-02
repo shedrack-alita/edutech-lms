@@ -82,7 +82,6 @@ export default function CoursesListPage() {
     const filterCourses = () => {
         let filtered = [...courses];
 
-        // Filter by search query
         if (searchQuery.trim()) {
             const query = searchQuery.toLowerCase();
             filtered = filtered.filter(
@@ -93,7 +92,6 @@ export default function CoursesListPage() {
             );
         }
 
-        // Filter by status
         if (filterStatus === 'published') {
             filtered = filtered.filter((course) => course.isPublished);
         } else if (filterStatus === 'unpublished') {
@@ -149,19 +147,24 @@ export default function CoursesListPage() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
             {/* Header */}
-            <div className="bg-white border-b">
-                <div className="px-4 md:px-8 py-4 md:py-6">
+            <div className="bg-gradient-to-r from-[#9f2c0f] to-[#8a2609] border-b shadow-lg">
+                <div className="px-4 md:px-8 py-6 md:py-8">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-bold text-[#1b161f]">
-                                Manage Courses
-                            </h1>
-                            <p className="text-gray-600 mt-1 text-sm md:text-base">
-                                View and manage all courses on your platform
-                            </p>
+                        <div className="flex items-center gap-3">
+                            <div className="p-3 bg-white/10 rounded-lg backdrop-blur-sm">
+                                <BookOpen className="h-8 w-8 text-white" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-white">
+                                    Manage Courses
+                                </h1>
+                                <p className="text-white/90 mt-1 text-sm md:text-base">
+                                    View and manage all courses on your platform
+                                </p>
+                            </div>
                         </div>
                         <Link href="/admin/courses/create">
-                            <Button className="w-full md:w-auto bg-[#9f2c0f] hover:bg-[#8a2609]">
+                            <Button className="w-full md:w-auto bg-white text-[#9f2c0f] hover:bg-gray-100 shadow-lg font-semibold">
                                 <Plus className="h-4 w-4 mr-2" />
                                 Create Course
                             </Button>
@@ -172,17 +175,17 @@ export default function CoursesListPage() {
 
             <div className="p-4 md:p-8 space-y-6">
                 {/* Search and Filter */}
-                <Card className="shadow-lg">
+                <Card className="shadow-xl border-2">
                     <CardContent className="p-4 md:p-6">
                         <div className="flex flex-col md:flex-row gap-4">
                             {/* Search */}
                             <div className="flex-1 relative">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-500" />
                                 <Input
                                     placeholder="Search courses by title, description, or category..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="pl-10 h-11"
+                                    className="pl-10 h-12 text-base border-2 border-gray-300 focus:border-[#9f2c0f] focus:ring-2 focus:ring-[#9f2c0f]/20"
                                 />
                             </div>
 
@@ -193,8 +196,8 @@ export default function CoursesListPage() {
                                     onClick={() => setFilterStatus('all')}
                                     className={
                                         filterStatus === 'all'
-                                            ? 'bg-[#9f2c0f] hover:bg-[#8a2609]'
-                                            : ''
+                                            ? 'bg-[#9f2c0f] hover:bg-[#8a2609] font-semibold border-2'
+                                            : 'border-2 border-gray-300 hover:bg-gray-100 font-semibold'
                                     }
                                 >
                                     <Filter className="h-4 w-4 mr-2" />
@@ -205,8 +208,8 @@ export default function CoursesListPage() {
                                     onClick={() => setFilterStatus('published')}
                                     className={
                                         filterStatus === 'published'
-                                            ? 'bg-green-600 hover:bg-green-700'
-                                            : ''
+                                            ? 'bg-green-600 hover:bg-green-700 font-semibold border-2'
+                                            : 'border-2 border-gray-300 hover:bg-gray-100 font-semibold'
                                     }
                                 >
                                     <Eye className="h-4 w-4 mr-2" />
@@ -217,8 +220,8 @@ export default function CoursesListPage() {
                                     onClick={() => setFilterStatus('unpublished')}
                                     className={
                                         filterStatus === 'unpublished'
-                                            ? 'bg-orange-600 hover:bg-orange-700'
-                                            : ''
+                                            ? 'bg-orange-600 hover:bg-orange-700 font-semibold border-2'
+                                            : 'border-2 border-gray-300 hover:bg-gray-100 font-semibold'
                                     }
                                 >
                                     <EyeOff className="h-4 w-4 mr-2" />
@@ -228,9 +231,9 @@ export default function CoursesListPage() {
                         </div>
 
                         {/* Results count */}
-                        <div className="mt-4 text-sm text-gray-600">
-                            Showing <span className="font-semibold">{filteredCourses.length}</span> of{' '}
-                            <span className="font-semibold">{courses.length}</span> courses
+                        <div className="mt-4 text-sm font-semibold text-gray-700">
+                            Showing <span className="text-[#9f2c0f]">{filteredCourses.length}</span> of{' '}
+                            <span className="text-[#9f2c0f]">{courses.length}</span> courses
                         </div>
                     </CardContent>
                 </Card>
@@ -239,7 +242,7 @@ export default function CoursesListPage() {
                 {isLoading && (
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                         {[1, 2, 3, 4, 5, 6].map((i) => (
-                            <Card key={i} className="overflow-hidden">
+                            <Card key={i} className="overflow-hidden border-2">
                                 <Skeleton className="h-48 w-full" />
                                 <CardContent className="p-4 space-y-3">
                                     <Skeleton className="h-6 w-3/4" />
@@ -257,23 +260,23 @@ export default function CoursesListPage() {
 
                 {/* Empty State */}
                 {!isLoading && filteredCourses.length === 0 && (
-                    <Card className="shadow-lg">
+                    <Card className="shadow-xl border-2">
                         <CardContent className="p-12 text-center">
-                            <BookOpen className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                            <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                            <BookOpen className="h-20 w-20 mx-auto text-gray-400 mb-4" />
+                            <h3 className="text-2xl font-bold text-gray-900 mb-2">
                                 {searchQuery || filterStatus !== 'all'
                                     ? 'No courses found'
                                     : 'No courses yet'}
                             </h3>
-                            <p className="text-gray-600 mb-6">
+                            <p className="text-gray-600 mb-6 text-base">
                                 {searchQuery || filterStatus !== 'all'
                                     ? 'Try adjusting your search or filter criteria'
                                     : 'Get started by creating your first course'}
                             </p>
                             {!searchQuery && filterStatus === 'all' && (
                                 <Link href="/admin/courses/create">
-                                    <Button className="bg-[#9f2c0f] hover:bg-[#8a2609]">
-                                        <Plus className="h-4 w-4 mr-2" />
+                                    <Button className="bg-[#9f2c0f] hover:bg-[#8a2609] h-12 text-base font-semibold shadow-lg">
+                                        <Plus className="h-5 w-5 mr-2" />
                                         Create Course
                                     </Button>
                                 </Link>
@@ -288,7 +291,7 @@ export default function CoursesListPage() {
                         {filteredCourses.map((course) => (
                             <Card
                                 key={course.id}
-                                className="overflow-hidden hover:shadow-xl transition-shadow duration-300 group"
+                                className="overflow-hidden hover:shadow-2xl transition-all duration-300 group border-2 border-gray-200 hover:border-[#9f2c0f]"
                             >
                                 {/* Thumbnail */}
                                 <div className="relative h-48 bg-gradient-to-br from-[#1b161f] to-gray-800 overflow-hidden">
@@ -322,8 +325,8 @@ export default function CoursesListPage() {
                                         <Badge
                                             className={
                                                 course.isPublished
-                                                    ? 'bg-green-500 hover:bg-green-600'
-                                                    : 'bg-orange-500 hover:bg-orange-600'
+                                                    ? 'bg-green-500 hover:bg-green-600 font-bold shadow-lg'
+                                                    : 'bg-orange-500 hover:bg-orange-600 font-bold shadow-lg'
                                             }
                                         >
                                             {course.isPublished ? (
@@ -342,22 +345,22 @@ export default function CoursesListPage() {
 
                                     {/* Level Badge */}
                                     <div className="absolute top-3 left-3">
-                                        <Badge variant="secondary" className="bg-white/90">
+                                        <Badge variant="secondary" className="bg-white/95 font-bold shadow-lg">
                                             {course.level}
                                         </Badge>
                                     </div>
                                 </div>
 
                                 {/* Content */}
-                                <CardContent className="p-4 space-y-3">
+                                <CardContent className="p-4 space-y-3 bg-white">
                                     {/* Title */}
                                     <h3 className="font-bold text-lg text-[#1b161f] line-clamp-2 group-hover:text-[#9f2c0f] transition-colors">
                                         {course.title}
                                     </h3>
 
                                     {/* Category */}
-                                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                                        <BookOpen className="h-4 w-4" />
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                        <BookOpen className="h-4 w-4 text-[#9f2c0f]" />
                                         <span>{course.category}</span>
                                     </div>
 
@@ -367,19 +370,19 @@ export default function CoursesListPage() {
                                     </p>
 
                                     {/* Stats */}
-                                    <div className="flex items-center gap-4 text-xs text-gray-500 pt-2 border-t">
+                                    <div className="flex items-center gap-4 text-sm font-semibold text-gray-600 pt-2 border-t-2">
                                         <div className="flex items-center gap-1">
-                                            <BookOpen className="h-3 w-3" />
+                                            <BookOpen className="h-4 w-4 text-blue-600" />
                                             <span>{course._count.modules} modules</span>
                                         </div>
                                         <div className="flex items-center gap-1">
-                                            <GraduationCap className="h-3 w-3" />
+                                            <GraduationCap className="h-4 w-4 text-green-600" />
                                             <span>{course._count.enrollments} students</span>
                                         </div>
                                     </div>
 
                                     {/* Creator */}
-                                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                                    <div className="flex items-center gap-1 text-xs font-semibold text-gray-500">
                                         <Clock className="h-3 w-3" />
                                         <span>
                                             By {course.creator.firstName} {course.creator.lastName}
@@ -387,14 +390,14 @@ export default function CoursesListPage() {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="flex flex-wrap gap-2 pt-3">
+                                    <div className="flex flex-wrap gap-2 pt-3 border-t-2">
                                         <Link href={`/admin/courses/${course.id}/edit`} className="flex-1">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
-                                                className="w-full hover:bg-[#9f2c0f] hover:text-white transition-colors"
+                                                className="w-full hover:bg-[#9f2c0f] hover:text-white transition-colors border-2 font-semibold"
                                             >
-                                                <Edit className="h-3 w-3 mr-1" />
+                                                <Edit className="h-4 w-4 mr-1" />
                                                 Edit
                                             </Button>
                                         </Link>
@@ -405,14 +408,14 @@ export default function CoursesListPage() {
                                             onClick={() => handleTogglePublish(course)}
                                             className={
                                                 course.isPublished
-                                                    ? 'hover:bg-orange-500 hover:text-white'
-                                                    : 'hover:bg-green-500 hover:text-white'
+                                                    ? 'hover:bg-orange-500 hover:text-white border-2 font-semibold'
+                                                    : 'hover:bg-green-500 hover:text-white border-2 font-semibold'
                                             }
                                         >
                                             {course.isPublished ? (
-                                                <EyeOff className="h-3 w-3" />
+                                                <EyeOff className="h-4 w-4" />
                                             ) : (
-                                                <Eye className="h-3 w-3" />
+                                                <Eye className="h-4 w-4" />
                                             )}
                                         </Button>
 
@@ -420,9 +423,9 @@ export default function CoursesListPage() {
                                             variant="outline"
                                             size="sm"
                                             onClick={() => handleDelete(course.id, course.title)}
-                                            className="hover:bg-red-500 hover:text-white transition-colors"
+                                            className="hover:bg-red-500 hover:text-white transition-colors border-2 font-semibold"
                                         >
-                                            <Trash2 className="h-3 w-3" />
+                                            <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
                                 </CardContent>

@@ -1,321 +1,565 @@
-import { Request, Response, NextFunction } from 'express';
-import { CoursesService } from './courses.service.js';
-import { ResponseUtil } from '../../shared/utils/response.js';
-import { AuthRequest } from '../../shared/types/index.js';
-import {
-	CreateCourseInput,
-	UpdateCourseInput,
-	GetCoursesQuery,
-	CreateModuleInput,
-	UpdateModuleInput,
-	CreateLessonInput,
-	UpdateLessonInput,
-} from './courses.types.js';
+import { Request, Response } from 'express';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class CoursesController {
-	// ============================================
-	// COURSE CONTROLLERS
-	// ============================================
-
-	/**
-	 * Create course
-	 * POST /api/courses
-	 */
-	static async createCourse(req: AuthRequest, res: Response, next: NextFunction) {
+	// Create a new course
+	static async createCourse(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
+			const { title, description, category, level, thumbnail, isPublished } = req.body;
+			const userId = req.user!.id;
+
+			const course = await prisma.course.create({
+				data: {
+					title,
+					description,
+					category,
+					level,
+					thumbnail,
+					isPublished: isPublished || false,
+					creatorId: userId,
+				},
+				include: {
+					creator: {
+						select: {
+							id: true,
+							firstName: true,
+							lastName: true,
+							email: true,
+						},
+					},
+				},
+			});
+
+			res.status(201).json({
+				success: true,
+				message: 'Course created successfully',
+				data: course,
+			});
+		} catch (error) {
+			console.error('Error creating course:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to create course',
+			});
+		}
+	}
+
+	// Get all courses
+	static async getAllCourses(req: Request, res: Response) {
+		try {
+			const { page = 1, limit = 10, category, level, search, isPublished } = req.query;
+
+			const skip = (Number(page) - 1) * Number(limit);
+
+			const where: any = {};
+
+			// If isPublished is specified, filter by it
+			if (isPublished !== undefined) {
+				where.isPublished = isPublished === 'true';
+			} else {
+				// By default, only show published courses for public access
+				where.isPublished = true;
 			}
 
-			const data: CreateCourseInput = req.body;
-			const course = await CoursesService.createCourse(req.user.id, data);
+			if (category) where.category = category;
+			if (level) where.level = level;
+			if (search) {
+				where.OR = [
+					{ title: { contains: search as string, mode: 'insensitive' } },
+					{ description: { contains: search as string, mode: 'insensitive' } },
+				];
+			}
 
-			return ResponseUtil.success(res, course, 'Course created successfully', 201);
+			const [courses, total] = await Promise.all([
+				prisma.course.findMany({
+					where,
+					skip,
+					take: Number(limit),
+					include: {
+						creator: {
+							select: {
+								id: true,
+								firstName: true,
+								lastName: true,
+							},
+						},
+						_count: {
+							select: {
+								modules: true,
+								enrollments: true,
+							},
+						},
+					},
+					orderBy: { createdAt: 'desc' },
+				}),
+				prisma.course.count({ where }),
+			]);
+
+			res.json({
+				success: true,
+				data: courses,
+				pagination: {
+					page: Number(page),
+					limit: Number(limit),
+					total,
+					totalPages: Math.ceil(total / Number(limit)),
+				},
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error fetching courses:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to fetch courses',
+			});
 		}
 	}
 
-	/**
-	 * Get all courses
-	 * GET /api/courses
-	 */
-	static async getAllCourses(req: AuthRequest, res: Response, next: NextFunction) {
-		try {
-			const query: GetCoursesQuery = {
-				page: req.query.page ? parseInt(req.query.page as string) : undefined,
-				limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
-				category: req.query.category as string,
-				level: req.query.level as any,
-				isPublished: req.query.isPublished === 'true' ? true : req.query.isPublished === 'false' ? false : undefined,
-				search: req.query.search as string,
-				sortBy: req.query.sortBy as any,
-				sortOrder: req.query.sortOrder as 'asc' | 'desc',
-				creatorId: req.query.creatorId as string,
-			};
-
-			const result = await CoursesService.getAllCourses(query);
-
-			return ResponseUtil.paginated(res, result.courses, result.pagination.page, result.pagination.limit, result.pagination.total);
-		} catch (error) {
-			next(error);
-		}
-	}
-
-	/**
-	 * Get course by ID
-	 * GET /api/courses/:id
-	 */
-	static async getCourseById(req: AuthRequest, res: Response, next: NextFunction) {
+	// Get course by ID (with modules and lessons)
+	static async getCourseById(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
 
-			// Allow unpublished courses for creator/admin
-			const includeUnpublished = req.user?.role === 'ADMIN' || (req.query.creatorView === 'true' && req.user);
+			const course = await prisma.course.findUnique({
+				where: { id },
+				include: {
+					creator: {
+						select: {
+							id: true,
+							firstName: true,
+							lastName: true,
+							email: true,
+						},
+					},
+					modules: {
+						include: {
+							lessons: {
+								orderBy: { order: 'asc' },
+							},
+						},
+						orderBy: { order: 'asc' },
+					},
+					_count: {
+						select: {
+							enrollments: true,
+						},
+					},
+				},
+			});
 
-			const course = await CoursesService.getCourseById(id, includeUnpublished);
-
-			return ResponseUtil.success(res, course, 'Course retrieved successfully');
-		} catch (error) {
-			next(error);
-		}
-	}
-
-	/**
-	 * Update course
-	 * PUT /api/courses/:id
-	 */
-	static async updateCourse(req: AuthRequest, res: Response, next: NextFunction) {
-		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
+			if (!course) {
+				return res.status(404).json({
+					success: false,
+					message: 'Course not found',
+				});
 			}
 
-			const { id } = req.params;
-			const data: UpdateCourseInput = req.body;
-
-			const course = await CoursesService.updateCourse(id, req.user.id, req.user.role, data);
-
-			return ResponseUtil.success(res, course, 'Course updated successfully');
+			res.json({
+				success: true,
+				data: course,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error fetching course:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to fetch course',
+			});
 		}
 	}
 
-	/**
-	 * Toggle course publish status
-	 * PATCH /api/courses/:id/publish
-	 */
-	static async togglePublish(req: AuthRequest, res: Response, next: NextFunction) {
+	// Get course statistics
+	static async getCourseStats(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
+			const { id } = req.params;
+
+			const course = await prisma.course.findUnique({
+				where: { id },
+				include: {
+					_count: {
+						select: {
+							modules: true,
+							enrollments: true,
+						},
+					},
+				},
+			});
+
+			if (!course) {
+				return res.status(404).json({
+					success: false,
+					message: 'Course not found',
+				});
 			}
 
-			const { id } = req.params;
+			// Get total lessons count
+			const lessonsCount = await prisma.lesson.count({
+				where: {
+					module: {
+						courseId: id,
+					},
+				},
+			});
 
-			const course = await CoursesService.toggleCoursePublish(id, req.user.id, req.user.role);
-
-			return ResponseUtil.success(res, course, `Course ${course.isPublished ? 'published' : 'unpublished'} successfully`);
+			res.json({
+				success: true,
+				data: {
+					totalModules: course._count.modules,
+					totalLessons: lessonsCount,
+					totalEnrollments: course._count.enrollments,
+				},
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error fetching course stats:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to fetch course statistics',
+			});
 		}
 	}
 
-	/**
-	 * Delete course
-	 * DELETE /api/courses/:id
-	 */
-	static async deleteCourse(req: AuthRequest, res: Response, next: NextFunction) {
+	// Update course
+	static async updateCourse(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
+			const { id } = req.params;
+			const { title, description, category, level, thumbnail, isPublished } = req.body;
+
+			const course = await prisma.course.update({
+				where: { id },
+				data: {
+					title,
+					description,
+					category,
+					level,
+					thumbnail,
+					isPublished,
+				},
+				include: {
+					creator: {
+						select: {
+							id: true,
+							firstName: true,
+							lastName: true,
+						},
+					},
+				},
+			});
+
+			res.json({
+				success: true,
+				message: 'Course updated successfully',
+				data: course,
+			});
+		} catch (error) {
+			console.error('Error updating course:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to update course',
+			});
+		}
+	}
+
+	// Toggle publish status
+	static async togglePublish(req: Request, res: Response) {
+		try {
+			const { id } = req.params;
+
+			const course = await prisma.course.findUnique({
+				where: { id },
+				select: { isPublished: true },
+			});
+
+			if (!course) {
+				return res.status(404).json({
+					success: false,
+					message: 'Course not found',
+				});
 			}
 
-			const { id } = req.params;
+			const updatedCourse = await prisma.course.update({
+				where: { id },
+				data: { isPublished: !course.isPublished },
+			});
 
-			await CoursesService.deleteCourse(id, req.user.id, req.user.role);
-
-			return ResponseUtil.success(res, null, 'Course deleted successfully');
+			res.json({
+				success: true,
+				message: `Course ${updatedCourse.isPublished ? 'published' : 'unpublished'} successfully`,
+				data: updatedCourse,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error toggling publish status:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to toggle publish status',
+			});
 		}
 	}
 
-	/**
-	 * Get course statistics
-	 * GET /api/courses/:id/stats
-	 */
-	static async getCourseStats(req: AuthRequest, res: Response, next: NextFunction) {
+	// Delete course
+	static async deleteCourse(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
-			const stats = await CoursesService.getCourseStats(id);
 
-			return ResponseUtil.success(res, stats, 'Course statistics retrieved successfully');
+			await prisma.course.delete({
+				where: { id },
+			});
+
+			res.json({
+				success: true,
+				message: 'Course deleted successfully',
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error deleting course:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to delete course',
+			});
 		}
 	}
 
-	// ============================================
-	// MODULE CONTROLLERS
-	// ============================================
-
-	/**
-	 * Create module
-	 * POST /api/courses/:courseId/modules
-	 */
-	static async createModule(req: AuthRequest, res: Response, next: NextFunction) {
+	// Create module
+	static async createModule(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
-			}
-
 			const { courseId } = req.params;
-			const data: CreateModuleInput = req.body;
+			const { title, description, order } = req.body;
 
-			const module = await CoursesService.createModule(courseId, req.user.id, req.user.role, data);
+			const module = await prisma.module.create({
+				data: {
+					title,
+					description,
+					order,
+					courseId,
+				},
+			});
 
-			return ResponseUtil.success(res, module, 'Module created successfully', 201);
+			res.status(201).json({
+				success: true,
+				message: 'Module created successfully',
+				data: module,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error creating module:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to create module',
+			});
 		}
 	}
 
-	/**
-	 * Get module by ID
-	 * GET /api/modules/:id
-	 */
-	static async getModuleById(req: AuthRequest, res: Response, next: NextFunction) {
+	// Get module by ID
+	static async getModuleById(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
-			const module = await CoursesService.getModuleById(id);
 
-			return ResponseUtil.success(res, module, 'Module retrieved successfully');
+			const module = await prisma.module.findUnique({
+				where: { id },
+				include: {
+					lessons: {
+						orderBy: { order: 'asc' },
+					},
+					course: {
+						select: {
+							id: true,
+							title: true,
+						},
+					},
+				},
+			});
+
+			if (!module) {
+				return res.status(404).json({
+					success: false,
+					message: 'Module not found',
+				});
+			}
+
+			res.json({
+				success: true,
+				data: module,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error fetching module:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to fetch module',
+			});
 		}
 	}
 
-	/**
-	 * Update module
-	 * PUT /api/modules/:id
-	 */
-	static async updateModule(req: AuthRequest, res: Response, next: NextFunction) {
+	// Update module
+	static async updateModule(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
-			}
-
 			const { id } = req.params;
-			const data: UpdateModuleInput = req.body;
+			const { title, description, order } = req.body;
 
-			const module = await CoursesService.updateModule(id, req.user.id, req.user.role, data);
+			const module = await prisma.module.update({
+				where: { id },
+				data: {
+					title,
+					description,
+					order,
+				},
+			});
 
-			return ResponseUtil.success(res, module, 'Module updated successfully');
+			res.json({
+				success: true,
+				message: 'Module updated successfully',
+				data: module,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error updating module:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to update module',
+			});
 		}
 	}
 
-	/**
-	 * Delete module
-	 * DELETE /api/modules/:id
-	 */
-	static async deleteModule(req: AuthRequest, res: Response, next: NextFunction) {
+	// Delete module
+	static async deleteModule(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
-			}
-
 			const { id } = req.params;
 
-			await CoursesService.deleteModule(id, req.user.id, req.user.role);
+			await prisma.module.delete({
+				where: { id },
+			});
 
-			return ResponseUtil.success(res, null, 'Module deleted successfully');
+			res.json({
+				success: true,
+				message: 'Module deleted successfully',
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error deleting module:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to delete module',
+			});
 		}
 	}
 
-	// ============================================
-	// LESSON CONTROLLERS
-	// ============================================
-
-	/**
-	 * Create lesson
-	 * POST /api/modules/:moduleId/lessons
-	 */
-	static async createLesson(req: AuthRequest, res: Response, next: NextFunction) {
+	// Create lesson
+	static async createLesson(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
-			}
-
 			const { moduleId } = req.params;
-			const data: CreateLessonInput = req.body;
+			const { title, description, contentType, videoUrl, textContent, duration, order } = req.body;
 
-			const lesson = await CoursesService.createLesson(moduleId, req.user.id, req.user.role, data);
+			const lesson = await prisma.lesson.create({
+				data: {
+					title,
+					description,
+					contentType,
+					videoUrl,
+					textContent,
+					duration,
+					order,
+					moduleId,
+				},
+			});
 
-			return ResponseUtil.success(res, lesson, 'Lesson created successfully', 201);
+			res.status(201).json({
+				success: true,
+				message: 'Lesson created successfully',
+				data: lesson,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error creating lesson:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to create lesson',
+			});
 		}
 	}
 
-	/**
-	 * Get lesson by ID
-	 * GET /api/lessons/:id
-	 */
-	static async getLessonById(req: AuthRequest, res: Response, next: NextFunction) {
+	// Get lesson by ID
+	static async getLessonById(req: Request, res: Response) {
 		try {
 			const { id } = req.params;
-			const lesson = await CoursesService.getLessonById(id);
 
-			return ResponseUtil.success(res, lesson, 'Lesson retrieved successfully');
-		} catch (error) {
-			next(error);
-		}
-	}
+			const lesson = await prisma.lesson.findUnique({
+				where: { id },
+				include: {
+					module: {
+						select: {
+							id: true,
+							title: true,
+							courseId: true,
+						},
+					},
+				},
+			});
 
-	/**
-	 * Update lesson
-	 * PUT /api/lessons/:id
-	 */
-	static async updateLesson(req: AuthRequest, res: Response, next: NextFunction) {
-		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
+			if (!lesson) {
+				return res.status(404).json({
+					success: false,
+					message: 'Lesson not found',
+				});
 			}
 
-			const { id } = req.params;
-			const data: UpdateLessonInput = req.body;
-
-			const lesson = await CoursesService.updateLesson(id, req.user.id, req.user.role, data);
-
-			return ResponseUtil.success(res, lesson, 'Lesson updated successfully');
+			res.json({
+				success: true,
+				data: lesson,
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error fetching lesson:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to fetch lesson',
+			});
 		}
 	}
 
-	/**
-	 * Delete lesson
-	 * DELETE /api/lessons/:id
-	 */
-	static async deleteLesson(req: AuthRequest, res: Response, next: NextFunction) {
+	// Update lesson
+	static async updateLesson(req: Request, res: Response) {
 		try {
-			if (!req.user) {
-				throw new Error('User not authenticated');
-			}
+			const { id } = req.params;
+			const { title, description, contentType, videoUrl, textContent, duration, order } = req.body;
 
+			const lesson = await prisma.lesson.update({
+				where: { id },
+				data: {
+					title,
+					description,
+					contentType,
+					videoUrl,
+					textContent,
+					duration,
+					order,
+				},
+			});
+
+			res.json({
+				success: true,
+				message: 'Lesson updated successfully',
+				data: lesson,
+			});
+		} catch (error) {
+			console.error('Error updating lesson:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to update lesson',
+			});
+		}
+	}
+
+	// Delete lesson
+	static async deleteLesson(req: Request, res: Response) {
+		try {
 			const { id } = req.params;
 
-			await CoursesService.deleteLesson(id, req.user.id, req.user.role);
+			await prisma.lesson.delete({
+				where: { id },
+			});
 
-			return ResponseUtil.success(res, null, 'Lesson deleted successfully');
+			res.json({
+				success: true,
+				message: 'Lesson deleted successfully',
+			});
 		} catch (error) {
-			next(error);
+			console.error('Error deleting lesson:', error);
+			res.status(500).json({
+				success: false,
+				message: 'Failed to delete lesson',
+			});
 		}
 	}
 }
